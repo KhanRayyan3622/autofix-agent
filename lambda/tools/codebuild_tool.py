@@ -373,17 +373,13 @@ class CodeBuildTool:
         """
         try:
             list_params = {
-                'sortOrder': 'DESCENDING',
-                'maxResults': min(limit, 100)
+                'sortOrder': 'DESCENDING'
             }
-            
-            if project_name:
-                list_params['projectName'] = project_name
             
             response = self.client.list_builds(**list_params)
             
             # Get detailed information for each build
-            build_ids = response.get('ids', [])
+            build_ids = response.get('ids', [])[:limit]
             if not build_ids:
                 return {
                     'success': True,

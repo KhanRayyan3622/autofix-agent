@@ -1,4 +1,4 @@
-# AutoTriage & AutoFix Agent - Git Ignore
+# AutoTriage & AutoFix Agent - Secure Git Ignore
 
 # Python
 __pycache__/
@@ -30,7 +30,7 @@ ENV/
 .venv/
 .env/
 
-# IDE
+# IDE / Editors
 .vscode/
 .idea/
 *.swp
@@ -46,9 +46,14 @@ ENV/
 ehthumbs.db
 Thumbs.db
 
-# AWS SAM
+# AWS SAM & Cloud Infrastructure
 .aws-sam/
 samconfig.toml
+infra/parameters.json
+infra/aws-credentials.json
+infra/*.key
+infra/*.pem
+infra/*.crt
 
 # Environment variables
 .env
@@ -90,10 +95,12 @@ Pipfile.lock
 .aws/
 *.pem
 *.key
+*.crt
 
 # Local configuration
 config.local.json
 parameters.local.json
+infra/local-*
 
 # Test outputs
 test-results/
@@ -107,3 +114,8 @@ site/
 *.bak
 *.backup
 *.orig
+
+# Installers / Packages
+*.deb
+*.tar.gz
+*.zip

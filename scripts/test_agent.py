@@ -114,7 +114,9 @@ class AgentTester:
         start_time = time.time()
         
         try:
-            from lambda.tools.github_tool import GitHubTool
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lambda'))
+            from tools.github_tool import GitHubTool
             
             github_tool = GitHubTool()
             
@@ -234,7 +236,9 @@ class AgentTester:
         start_time = time.time()
         
         try:
-            from lambda.tools.s3_tool import S3Tool
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lambda'))
+            from tools.s3_tool import S3Tool
             
             s3_tool = S3Tool()
             bucket = os.environ.get('S3_BUCKET')
@@ -307,7 +311,9 @@ class AgentTester:
         start_time = time.time()
         
         try:
-            from lambda.tools.codebuild_tool import CodeBuildTool
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lambda'))
+            from tools.codebuild_tool import CodeBuildTool
             
             codebuild_tool = CodeBuildTool()
             project_name = os.environ.get('CODEBUILD_PROJECT')
@@ -397,16 +403,31 @@ RESPONSE FORMAT (JSON):
             bedrock = boto3.client('bedrock-runtime')
             model_id = os.environ.get('BEDROCK_MODEL_ID', 'anthropic.claude-3-5-sonnet-20241022')
             
-            request_body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1000,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
+            # Use different format for different models
+            if "anthropic" in model_id:
+                request_body = {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1000,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                }
+            else:
+                # Amazon Nova format
+                request_body = {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [{"text": prompt}]
+                        }
+                    ],
+                    "inferenceConfig": {
+                        "maxTokens": 1000
                     }
-                ]
-            }
+                }
             
             response = bedrock.invoke_model(
                 modelId=model_id,
@@ -416,10 +437,17 @@ RESPONSE FORMAT (JSON):
             )
             
             response_body = json.loads(response['body'].read())
-            content = response_body.get('content', [])
             
-            if content and len(content) > 0:
-                response_text = content[0].get('text', '')
+            # Parse response based on model type
+            if "anthropic" in model_id:
+                content = response_body.get('content', [])
+                if content and len(content) > 0:
+                    response_text = content[0].get('text', '')
+                else:
+                    response_text = ""
+            else:
+                # Amazon Nova format
+                response_text = response_body.get('output', {}).get('message', {}).get('content', [{}])[0].get('text', '')
                 
                 # Try to parse JSON response
                 try:
@@ -436,6 +464,8 @@ RESPONSE FORMAT (JSON):
                                 time.time() - start_time
                             )
                             return True
+                except json.JSONDecodeError:
+                    pass
                 
                 self.log_test_result(
                     "Agent Reasoning",
@@ -444,7 +474,8 @@ RESPONSE FORMAT (JSON):
                     time.time() - start_time
                 )
                 return False
-            else:
+            
+            if not response_text:
                 self.log_test_result(
                     "Agent Reasoning",
                     False,
@@ -503,7 +534,9 @@ RESPONSE FORMAT (JSON):
             }
             
             # Test webhook handler
-            from lambda.webhook_handler import lambda_handler
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lambda'))
+            from webhook_handler import lambda_handler
             
             # Mock context
             class MockContext:
