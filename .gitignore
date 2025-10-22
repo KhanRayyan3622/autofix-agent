@@ -119,3 +119,4 @@ site/
 *.deb
 *.tar.gz
 *.zip
+infra/parameters.json
