@@ -1,0 +1,46 @@
+{
+  "action": "opened",
+  "issue": {
+    "id": 12345,
+    "number": 1,
+    "title": "Fix typo in README.md",
+    "body": "There is a typo in the README.md file on line 15.\n\n**Current text:**\n```\nThis project demostrates the capabilities of our system.\n```\n\n**Should be:**\n```\nThis project demonstrates the capabilities of our system.\n```\n\nThis is a simple typo fix that should be straightforward to resolve automatically.",
+    "state": "open",
+    "labels": [
+      {
+        "name": "bug",
+        "color": "d73a4a"
+      },
+      {
+        "name": "documentation",
+        "color": "0075ca"
+      },
+      {
+        "name": "good first issue",
+        "color": "7057ff"
+      }
+    ],
+    "assignee": null,
+    "user": {
+      "login": "testuser",
+      "type": "User"
+    },
+    "created_at": "2024-10-20T10:00:00Z",
+    "updated_at": "2024-10-20T10:00:00Z"
+  },
+  "repository": {
+    "id": 123456,
+    "name": "test-repo",
+    "full_name": "testuser/test-repo",
+    "owner": {
+      "login": "testuser",
+      "type": "User"
+    },
+    "private": false,
+    "html_url": "https://github.com/testuser/test-repo",
+    "clone_url": "https://github.com/testuser/test-repo.git",
+    "default_branch": "main",
+    "language": "Python",
+    "topics": ["python", "automation", "ai"]
+  }
+}

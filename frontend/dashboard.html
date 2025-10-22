@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoTriage & AutoFix Agent Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AutoTriage & AutoFix Agent</h1>
+            <p>Autonomous GitHub Issue Resolution Dashboard</p>
+        </div>
+
+        <button class="refresh-btn" onclick="refreshDashboard()">
+            🔄 Refresh Dashboard
+        </button>
+
+        <div id="error-container"></div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h3>📊 Performance Metrics</h3>
+                <div class="metric">
+                    <span class="metric-label">Auto-fix Rate</span>
+                    <span class="metric-value" id="auto-fix-rate">45%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Mean Time to PR</span>
+                    <span class="metric-value" id="mean-time">8 min</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Issues Processed</span>
+                    <span class="metric-value" id="issues-processed">127</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Success Rate</span>
+                    <span class="metric-value" id="success-rate">92%</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⚡ System Status</h3>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-online"></span>
+                        Agent Status
+                    </span>
+                    <span class="metric-value">Online</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-online"></span>
+                        Bedrock API
+                    </span>
+                    <span class="metric-value">Connected</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-online"></span>
+                        GitHub API
+                    </span>
+                    <span class="metric-value">Connected</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-online"></span>
+                        CodeBuild
+                    </span>
+                    <span class="metric-value">Ready</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>💰 Cost Savings</h3>
+                <div class="metric">
+                    <span class="metric-label">Time Saved</span>
+                    <span class="metric-value" id="time-saved">60%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Monthly Savings</span>
+                    <span class="metric-value" id="monthly-savings">$2,400</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Developer Hours</span>
+                    <span class="metric-value" id="dev-hours">48 hrs</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">ROI</span>
+                    <span class="metric-value" id="roi">340%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="activity-feed">
+            <h3>🔄 Recent Activity</h3>
+            <div id="activity-list">
+                <div class="loading">Loading recent activity...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

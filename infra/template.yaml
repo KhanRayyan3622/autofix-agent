@@ -1,0 +1,262 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'AutoTriage & AutoFix Agent - Core Infrastructure'
+
+Globals:
+  Function:
+    Timeout: 300
+    Runtime: python3.11
+    Environment:
+      Variables:
+        GITHUB_TOKEN: !Ref GitHubToken
+        GITHUB_SECRET: !Ref GitHubSecret
+        BEDROCK_MODEL_ID: !Ref BedrockModelId
+        S3_BUCKET: !Ref ArtifactsBucket
+        CODEBUILD_PROJECT: !Ref CodeBuildProject
+        AGENT_MEMORY_TABLE: !Ref AgentMemoryTable
+
+Parameters:
+  GitHubToken:
+    Type: String
+    Description: GitHub Personal Access Token
+    NoEcho: true
+  GitHubSecret:
+    Type: String
+    Description: GitHub Webhook Secret
+    NoEcho: true
+  BedrockModelId:
+    Type: String
+    Default: 'anthropic.claude-3-5-sonnet-20241022'
+    Description: Bedrock Model ID to use
+  ArtifactsBucketName:
+    Type: String
+    Default: 'autofix-agent-artifacts'
+    Description: S3 bucket name for artifacts
+  GitHubOwner:
+    Type: String
+    Default: 'testuser'
+    Description: GitHub repository owner for CodeBuild
+  GitHubRepo:
+    Type: String
+    Default: 'test-repo'
+    Description: GitHub repository name for CodeBuild
+
+Resources:
+  # S3 Bucket for artifacts and logs
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ArtifactsBucketName}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # DynamoDB table for agent memory
+  AgentMemoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-agent-memory'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: issue_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: issue_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # IAM Role for Lambda functions
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: '*'
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::${ArtifactsBucket}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub 'arn:aws:s3:::${ArtifactsBucket}'
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !GetAtt AgentMemoryTable.Arn
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - codebuild:ListBuilds
+                Resource: '*'
+
+  # GitHub Webhook Handler
+  WebhookHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-webhook-handler'
+      CodeUri: ../lambda/
+      Handler: webhook_handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          ORCHESTRATOR_FUNCTION: !Ref AgentOrchestrator
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /github-webhook
+            Method: post
+            RestApiId: !Ref AutoFixAPI
+
+  # Agent Orchestrator
+  AgentOrchestrator:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-agent-orchestrator'
+      CodeUri: ../lambda/
+      Handler: agent_orchestrator.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          S3_BUCKET: !Ref ArtifactsBucket
+          CODEBUILD_PROJECT: !Ref CodeBuildProject
+          MEMORY_TABLE: !Ref AgentMemoryTable
+
+  # API Gateway
+  AutoFixAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  # CodeBuild Project for testing
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${AWS::StackName}-tests'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - Name: GITHUB_TOKEN
+            Value: !Ref GitHubToken
+      Source:
+        Type: GITHUB
+        Location: !Sub 'https://github.com/${GitHubOwner}/${GitHubRepo}'
+        GitCloneDepth: 1
+
+  # CodeBuild IAM Role
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub 'arn:aws:s3:::${ArtifactsBucket}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub 'arn:aws:s3:::${ArtifactsBucket}'
+
+  # CloudWatch Log Groups
+  WebhookLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${WebhookHandler}'
+      RetentionInDays: 14
+
+  OrchestratorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AgentOrchestrator}'
+      RetentionInDays: 14
+
+Outputs:
+  WebhookURL:
+    Description: GitHub webhook URL
+    Value: !Sub 'https://${AutoFixAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/github-webhook'
+    Export:
+      Name: !Sub '${AWS::StackName}-WebhookURL'
+
+  ArtifactsBucket:
+    Description: S3 bucket for artifacts
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ArtifactsBucket'
+
+  AgentMemoryTable:
+    Description: DynamoDB table for agent memory
+    Value: !Ref AgentMemoryTable
+    Export:
+      Name: !Sub '${AWS::StackName}-MemoryTable'
