@@ -1,6 +1,6 @@
 # 🤖 AutoTriage & AutoFix Agent
 
-> **AWS AI Agent Global Hackathon 2024 Submission**  
+> **AWS AI Agent Global Hackathon 2025 Submission**  
 > *Autonomous GitHub Issue Resolution with Amazon Bedrock*
 
 [![AWS](https://img.shields.io/badge/AWS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
